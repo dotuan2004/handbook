@@ -162,15 +162,15 @@ Khi B1 chết:
 
 > Với `min.insync.replicas=3`, chỉ P1 vẫn đủ điều kiện nhận ghi. P0 và P2 đều không thể chấp nhận ghi mới cho tới khi có replica bổ sung trở lại ISR.
 
-### 6.3. Hệ lụy trong 2 tiếng
+### 6.5. Hệ lụy trong 2 tiếng
 
-1. **Một số message không ghi được vào Kafka.** Với P1, producer gửi message nhưng Kafka từ chối. Producer có thể retry; nếu hết thời gian hoặc hết số lần retry, ứng dụng nhận lỗi gửi message.
+1. **Một số message không ghi được vào Kafka.** Với P0 và P2, producer gửi message nhưng Kafka từ chối. Producer có thể retry; nếu hết thời gian hoặc hết số lần retry, ứng dụng nhận lỗi gửi message.
 2. **Không nhất thiết cả 3 partition đều lỗi.** Partition nào mất một replica và ISR giảm dưới ngưỡng thì partition đó không chấp nhận ghi. Partition khác vẫn đủ ISR thì vẫn ghi bình thường.
 3. **Dữ liệu không tự động mất chỉ vì producer bị từ chối ghi.** Nhưng nếu ứng dụng bỏ qua lỗi hoặc không lưu lại message để gửi lại, nghiệp vụ có thể mất sự kiện.
 4. **Consumer có thể vẫn đọc được dữ liệu cũ.** Việc từ chối ghi mới không đồng nghĩa toàn bộ dữ liệu hiện có không đọc được.
 
-### 6.4. Bốn broker có nghĩa là B4 tự thay thế B1 không?
+### 6.6. Bốn broker có nghĩa là B4 tự thay thế B1 không?
 
-Không. Kafka không tự biến B4 thành replica P1 ngay lập tức chỉ vì B1 chết. Việc khôi phục replica cần cơ chế phân bổ lại replica và đồng bộ dữ liệu.
+Không. Kafka không tự biến B4 thành replica của P0 hoặc P2 ngay lập tức chỉ vì B1 chết. Việc khôi phục replica cần cơ chế phân bổ lại replica và đồng bộ dữ liệu.
 
-Nếu B1 quay lại sau 2 tiếng, replica của B1 cần bắt kịp leader và đáp ứng điều kiện để trở lại ISR. Khi ISR đạt lại 3, P1 có thể tiếp tục nhận ghi.
+Nếu B1 quay lại sau 2 tiếng, replica của B1 cần bắt kịp leader và đáp ứng điều kiện để trở lại ISR. Khi ISR của P0 và P2 đạt lại 3, các partition đó có thể tiếp tục nhận ghi.
