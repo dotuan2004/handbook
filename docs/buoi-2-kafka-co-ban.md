@@ -128,13 +128,13 @@ Cluster có 4 broker, topic có 3 partition, replication factor = 3:
 
 Vì RF = 3, mỗi partition có 3 replica. Kafka phân bổ replica trên các broker khác nhau. Ví dụ:
 
-| Partition | Broker 1 (Replica chính) | Broker 2 (Replica sao chép) | Broker 3 (Replica sao chép) |
-|-----------|--------------------------|-----------------------------|-----------------------------|
-| P0        | B1 (Leader)              | B2                          | B3                          |
-| P1        | B2 (Leader)              | B3                          | B4                          |
-| P2        | B3 (Leader)              | B4                          | B1                          |
+| Partition | Leader | Replica 2 | Replica 3 |
+|-----------|--------|-----------|-----------|
+| P0        | B1     | B2        | B3        |
+| P1        | B2     | B3        | B4        |
+| P2        | B3     | B4        | B1        |
 
-> Đây là ví dụ minh họa; cách phân bổ thực tế phụ thuộc thuật toán của Kafka.
+> Đây là ví dụ minh họa; cách phân bổ thực tế phụ thuộc thuật toán của Kafka. Mỗi broker đều chứa replica của ít nhất 1 partition.
 
 ### 6.3. Trường hợp B1 chết
 
@@ -143,14 +143,14 @@ Khi B1 chết:
 | Partition | Replica trên B1 | Trạng thái | ISR còn lại |
 |-----------|-----------------|------------|-------------|
 | P0        | Leader          | Mất leader | B2, B3 (2/3) |
-| P1        | Replica sao chép | Mất replica | B2 (Leader), B3, B4 (3/3) |
+| P1        | Không có        | Không ảnh hưởng | B2 (Leader), B3, B4 (3/3) |
 | P2        | Replica sao chép | Mất replica | B3 (Leader), B4 (2/3) |
 
 **Hệ quả:**
 
 - **P0:** Mất leader. Kafka sẽ chọn leader mới từ các replica còn sống (B2 hoặc B3). Tạm thời P0 không thể nhận ghi cho tới khi leader mới được bầu.
-- **P1:** Vẫn đủ 3 replica trong ISR (B2, B3, B4) → **vẫn nhận ghi bình thường**.
-- **P2:** Còn 2 replica trong ISR (B3, B4) → **không thể nhận ghi** với `acks=all` và `min.insync.replicas=3`.
+- **P1:** Không có replica trên B1, vẫn đủ 3 replica trong ISR (B2, B3, B4) → **vẫn nhận ghi bình thường**.
+- **P2:** Mất 1 replica, còn 2 replica trong ISR (B3, B4) → **không thể nhận ghi** với `acks=all` và `min.insync.replicas=3`.
 
 ### 6.4. Bảng tổng hợp trạng thái các partition
 
