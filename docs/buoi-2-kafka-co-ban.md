@@ -124,19 +124,43 @@ Cluster có 4 broker, topic có 3 partition, replication factor = 3:
 - RF = 3, `min.insync.replicas=3`, producer dùng `acks=all`.
 - B1 chết trong 2 tiếng.
 
-Giả sử P1 có replica trên B1, B2, B3. Với P0 và P2, vị trí replica phụ thuộc cách Kafka phân bổ.
+### 6.2. Ví dụ minh họa vị trí replica
 
-### 6.2. Trường hợp partition P1
+Vì RF = 3, mỗi partition có 3 replica. Kafka phân bổ replica trên các broker khác nhau. Ví dụ:
 
-```
-B1: Chết    B2: Sống    B3: Sống    B4: Sống (chưa có replica P1)
-```
+| Partition | Broker 1 (Replica chính) | Broker 2 (Replica sao chép) | Broker 3 (Replica sao chép) |
+|-----------|--------------------------|-----------------------------|-----------------------------|
+| P0        | B1 (Leader)              | B2                          | B3                          |
+| P1        | B2 (Leader)              | B3                          | B4                          |
+| P2        | B3 (Leader)              | B4                          | B1                          |
 
-| ISR của P1 | Ngưỡng tối thiểu |
-|------------|-----------------|
-| 2 / 3      | 3 / 3           |
+> Đây là ví dụ minh họa; cách phân bổ thực tế phụ thuộc thuật toán của Kafka.
 
-→ P1 không thể chấp nhận ghi mới với `acks=all`.
+### 6.3. Trường hợp B1 chết
+
+Khi B1 chết:
+
+| Partition | Replica trên B1 | Trạng thái | ISR còn lại |
+|-----------|-----------------|------------|-------------|
+| P0        | Leader          | Mất leader | B2, B3 (2/3) |
+| P1        | Replica sao chép | Mất replica | B2 (Leader), B3, B4 (3/3) |
+| P2        | Replica sao chép | Mất replica | B3 (Leader), B4 (2/3) |
+
+**Hệ quả:**
+
+- **P0:** Mất leader. Kafka sẽ chọn leader mới từ các replica còn sống (B2 hoặc B3). Tạm thời P0 không thể nhận ghi cho tới khi leader mới được bầu.
+- **P1:** Vẫn đủ 3 replica trong ISR (B2, B3, B4) → **vẫn nhận ghi bình thường**.
+- **P2:** Còn 2 replica trong ISR (B3, B4) → **không thể nhận ghi** với `acks=all` và `min.insync.replicas=3`.
+
+### 6.4. Bảng tổng hợp trạng thái các partition
+
+| Partition | ISR trước khi B1 chết | ISR sau khi B1 chết | Nhận ghi được? |
+|-----------|----------------------|---------------------|----------------|
+| P0        | B1, B2, B3 (3/3)     | B2, B3 (2/3)        | ❌ Không        |
+| P1        | B2, B3, B4 (3/3)     | B2, B3, B4 (3/3)    | ✅ Có           |
+| P2        | B3, B4, B1 (3/3)     | B3, B4 (2/3)        | ❌ Không        |
+
+> Với `min.insync.replicas=3`, chỉ P1 vẫn đủ điều kiện nhận ghi. P0 và P2 đều không thể chấp nhận ghi mới cho tới khi có replica bổ sung trở lại ISR.
 
 ### 6.3. Hệ lụy trong 2 tiếng
 
