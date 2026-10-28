@@ -174,3 +174,38 @@ Khi B1 chết:
 Không. Kafka không tự biến B4 thành replica của P0 hoặc P2 ngay lập tức chỉ vì B1 chết. Việc khôi phục replica cần cơ chế phân bổ lại replica và đồng bộ dữ liệu.
 
 Nếu B1 quay lại sau 2 tiếng, replica của B1 cần bắt kịp leader và đáp ứng điều kiện để trở lại ISR. Khi ISR của P0 và P2 đạt lại 3, các partition đó có thể tiếp tục nhận ghi.
+
+---
+
+## 7. Kafka vs RabbitMQ — khi nào chọn cái nào
+
+### 7.1. Điểm nổi bật của Kafka
+
+Kafka phù hợp khi cần:
+
+- **Replay dữ liệu lịch sử:** message được lưu trên log theo retention, consumer có thể đọc lại từ offset cũ.
+- **Nhiều Consumer Group đọc độc lập:** mỗi group có offset riêng, không ảnh hưởng nhau.
+- **Throughput rất cao:** ghi/đọc tuần tự trên log, phù hợp luồng sự kiện lớn.
+
+### 7.2. Cơ chế scale
+
+| | Kafka | RabbitMQ |
+|---|-------|----------|
+| Cách scale | Tăng **partition** (song song hóa theo partition, thêm consumer trong group) | Tăng **broker/node** trong cluster |
+| Giới hạn song song | Số consumer hữu ích trong một group ≤ số partition | Phụ thuộc số queue và số consumer của từng queue |
+
+> Tăng partition cũng kéo theo hệ quả đã nêu ở mục 2: key có thể bị đưa sang partition khác, ảnh hưởng thứ tự theo key.
+
+### 7.3. Throughput và tính nhất quán
+
+- **Kafka** xử lý tốt lượng throughput lớn.
+- **RabbitMQ** là mô hình queue đơn giản (broker đẩy message tới consumer, ack xong thì xóa), nên dễ hiểu và dễ đảm bảo tính nhất quán hơn cho các luồng nhỏ, cần xử lý từng việc một.
+
+> Ghi chú để nhớ: "nhất quán hơn" ở đây hiểu theo nghĩa **mô hình đơn giản, dễ suy luận**, không phải RabbitMQ tự đảm bảo exactly-once. Cả hai đều cần consumer idempotent (xem mục 1 và 3).
+
+### 7.4. Tóm tắt chọn nhanh
+
+| Nhu cầu | Nên cân nhắc |
+|---------|--------------|
+| Replay lịch sử, event streaming, nhiều group đọc độc lập, throughput lớn | Kafka |
+| Task queue / job đơn giản, routing linh hoạt, khối lượng vừa phải | RabbitMQ |
