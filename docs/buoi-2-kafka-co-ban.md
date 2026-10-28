@@ -187,12 +187,14 @@ Kafka phù hợp khi cần:
 - **Nhiều Consumer Group đọc độc lập:** mỗi group có offset riêng, không ảnh hưởng nhau.
 - **Throughput rất cao:** ghi/đọc tuần tự trên log, phù hợp luồng sự kiện lớn.
 
-### 7.2. Cơ chế scale
+### 7.2. Lợi thế khi scale ngang
 
-| | Kafka | RabbitMQ |
-|---|-------|----------|
-| Cách scale | Tăng **partition** (song song hóa theo partition, thêm consumer trong group) | Tăng **broker/node** trong cluster |
-| Giới hạn song song | Số consumer hữu ích trong một group ≤ số partition | Phụ thuộc số queue và số consumer của từng queue |
+Giả sử thêm 2 broker nữa, nâng tổng số lên 4:
+
+- **Kafka:** có thể phân bố các partition hiện có trên 4 broker, hoặc tăng partition rồi phân bố lại. Các broker cùng phục vụ những phần dữ liệu khác nhau của một topic.
+- **RabbitMQ:** cũng tận dụng được 4 broker, nhưng phải bố trí queue và routing phù hợp. Thêm broker không tự động chia một queue thông thường thành nhiều phần để các broker cùng xử lý queue đó.
+
+> Điểm khác biệt: Kafka có cơ chế partition và phân phối dữ liệu **tích hợp trực tiếp vào mô hình lưu trữ, đọc và xử lý song song**.
 
 > Tăng partition cũng kéo theo hệ quả đã nêu ở mục 2: key có thể bị đưa sang partition khác, ảnh hưởng thứ tự theo key.
 
